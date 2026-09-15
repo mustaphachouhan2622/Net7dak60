@@ -35,52 +35,35 @@ jobs:
           mkdir project
           unzip -q Net7dak60_V2_1.zip -d project
 
-      - name: Build APK
+      - name: Fix Java and Kotlin JVM target
         working-directory: project
-        run: gradle --no-daemon :app:assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Net7dak60-debug-apk
-          path: project/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-name: Build Net7dak 60 APK
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platforms;android-35 build-tools;35.0.0'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '8.7'
-
-      - name: Extract project
         run: |
-          rm -rf project
-          mkdir project
-          unzip -q Net7dak60_V2_1.zip -d project
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/build.gradle")
+          s = p.read_text()
+
+          if "compileOptions" not in s:
+              s = s.replace(
+                  "android {",
+                  """android {
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }"""
+              )
+
+          if "kotlinOptions" not in s:
+              s += """
+              
+          kotlinOptions {
+              jvmTarget = "17"
+          }
+          """
+
+          p.write_text(s)
+          PY
 
       - name: Build APK
         working-directory: project
