@@ -119,16 +119,26 @@ jobs:
           echo "=== SETTINGS FOUND ==="
           grep -RInE 'VERSION_1_8|VERSION_17|jvmTarget|sourceCompatibility|targetCompatibility' . --include='*.gradle' || true
 
-      - name: Build APK
+          - name: Inspect Gradle configuration
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x ./gradlew
-            ./gradlew --no-daemon :app:assembleDebug
-          else
-            gradle --no-daemon :app:assembleDebug
+          echo "===== app/build.gradle ====="
+          cat app/build.gradle
+
+          echo "===== root build.gradle ====="
+          if [ -f build.gradle ]; then
+            cat build.gradle
           fi
 
+          echo "===== settings.gradle ====="
+          if [ -f settings.gradle ]; then
+            cat settings.gradle
+          fi
+
+          echo "===== JVM settings ====="
+          grep -RInE '1\.8|17|jvmTarget|sourceCompatibility|targetCompatibility|toolchain' . \
+            --include='*.gradle' \
+            --include='*.gradle.kts' || true
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
