@@ -30,7 +30,6 @@ jobs:
           rm -rf project
           mkdir project
           unzip -q Net7dak60_V2_1.zip -d project
-          find project -maxdepth 4 -type f | head -100
 
       - name: Find Android project
         run: |
@@ -44,40 +43,37 @@ jobs:
             exit 1
           fi
 
-            - name: Force Java 17
-        working-directory: ${{ env.PROJECT_DIR }}
+      - name: Force JVM 17
         run: |
-          echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
-
-          cat >> gradle.properties <<'EOF'
-          android.suppressUnsupportedCompileSdk=35
-          EOF
-
-          cat >> build.gradle <<'EOF'
-
+          cat > /tmp/force-jvm17.gradle <<'EOF'
           allprojects {
               tasks.withType(JavaCompile).configureEach {
                   sourceCompatibility = "17"
                   targetCompatibility = "17"
               }
 
-              tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                  kotlinOptions {
-                      jvmTarget = "17"
+              tasks.configureEach {
+                  if (name.toLowerCase().contains("kotlin")) {
+                      try {
+                          kotlinOptions.jvmTarget = "17"
+                      } catch (Exception ignored) {
+                      }
                   }
               }
           }
           EOF
 
-          echo "=== Java/Kotlin configuration ==="
-          grep -R "VERSION_1_8\|jvmTarget\|sourceCompatibility\|targetCompatibility" app/build.gradle build.gradle || true    - name: Build APK
+          echo "=== Gradle JVM settings ==="
+          grep -RInE 'VERSION_1_8|jvmTarget|sourceCompatibility|targetCompatibility' "${PROJECT_DIR}" --include='*.gradle' --include='*.gradle.kts' || true
+
+      - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
-            ./gradlew --no-daemon :app:assembleDebug
+            ./gradlew --no-daemon -I /tmp/force-jvm17.gradle :app:assembleDebug
           else
-            gradle --no-daemon :app:assembleDebug
+            gradle --no-daemon -I /tmp/force-jvm17.gradle :app:assembleDebug
           fi
 
       - name: Upload APK
