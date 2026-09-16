@@ -45,6 +45,11 @@ jobs:
             exit 1
           fi
 
+      - name: Configure Java 17
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
+
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -54,13 +59,6 @@ jobs:
           else
             gradle --no-daemon :app:assembleDebug
           fi
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Net7dak60-debug-apk
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
