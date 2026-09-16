@@ -29,7 +29,6 @@ jobs:
           rm -rf project
           mkdir project
           unzip -q Net7dak60_V2_1.zip -d project
-
           echo "=== Project files ==="
           find project -maxdepth 4 -type f | head -100
 
@@ -45,7 +44,7 @@ jobs:
             exit 1
           fi
 
-            - name: Configure Java 17
+      - name: Configure Java and Kotlin to 17
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
@@ -54,32 +53,31 @@ jobs:
           from pathlib import Path
 
           p = Path("app/build.gradle")
-          if p.exists():
-              s = p.read_text()
 
-              s = s.replace(
-                  "sourceCompatibility JavaVersion.VERSION_1_8",
-                  "sourceCompatibility JavaVersion.VERSION_17"
-              )
-              s = s.replace(
-                  "targetCompatibility JavaVersion.VERSION_1_8",
-                  "targetCompatibility JavaVersion.VERSION_17"
-              )
-
-              if "kotlinOptions" in s:
-                  s = s.replace(
-                      "jvmTarget = '1.8'",
-                      "jvmTarget = '17'"
-                  )
-                  s = s.replace(
-                      'jvmTarget = "1.8"',
-                      'jvmTarget = "17"'
-                  )
-
-              p.write_text(s)
-              print("Java/Kotlin target updated to 17")
-          else:
+          if not p.exists():
               print("app/build.gradle not found")
+              raise SystemExit(1)
+
+          s = p.read_text()
+
+          s = s.replace(
+              "JavaVersion.VERSION_1_8",
+              "JavaVersion.VERSION_17"
+          )
+
+          s = s.replace(
+              'jvmTarget = "1.8"',
+              'jvmTarget = "17"'
+          )
+
+          s = s.replace(
+              "jvmTarget = '1.8'",
+              "jvmTarget = '17'"
+          )
+
+          p.write_text(s)
+
+          print("Java/Kotlin compatibility updated to 17")
           PY
 
       - name: Build APK
@@ -90,7 +88,7 @@ jobs:
             ./gradlew --no-daemon :app:assembleDebug
           else
             gradle --no-daemon :app:assembleDebug
-          f
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
