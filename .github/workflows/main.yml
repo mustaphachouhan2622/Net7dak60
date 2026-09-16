@@ -44,51 +44,33 @@ jobs:
             exit 1
           fi
 
-      - name: Force Java 17
+            - name: Force Java 17
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
 
-          python3 - <<'PY'
-          from pathlib import Path
+          cat >> gradle.properties <<'EOF'
+          android.suppressUnsupportedCompileSdk=35
+          EOF
 
-          p = Path("app/build.gradle")
-          text = p.read_text()
+          cat >> build.gradle <<'EOF'
 
-          text = text.replace(
-              "JavaVersion.VERSION_1_8",
-              "JavaVersion.VERSION_17"
-          )
+          allprojects {
+              tasks.withType(JavaCompile).configureEach {
+                  sourceCompatibility = "17"
+                  targetCompatibility = "17"
+              }
 
-          text = text.replace(
-              'jvmTarget = "1.8"',
-              'jvmTarget = "17"'
-          )
-
-          text = text.replace(
-              "jvmTarget = '1.8'",
-              "jvmTarget = '17'"
-          )
-
-          text += """
-
-          tasks.withType(JavaCompile).configureEach {
-              sourceCompatibility = JavaVersion.VERSION_17
-              targetCompatibility = JavaVersion.VERSION_17
-          }
-
-          tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-              kotlinOptions {
-                  jvmTarget = "17"
+              tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                  kotlinOptions {
+                      jvmTarget = "17"
+                  }
               }
           }
-          """
+          EOF
 
-          p.write_text(text)
-          print("Java and Kotlin forced to JVM 17")
-          PY
-
-      - name: Build APK
+          echo "=== Java/Kotlin configuration ==="
+          grep -R "VERSION_1_8\|jvmTarget\|sourceCompatibility\|targetCompatibility" app/build.gradle build.gradle || true    - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           if [ -f "./gradlew" ]; then
