@@ -43,37 +43,90 @@ jobs:
             exit 1
           fi
 
-      - name: Force JVM 17
+      - name: Fix Java and Kotlin JVM
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
-          cat > /tmp/force-jvm17.gradle <<'EOF'
-          allprojects {
-              tasks.withType(JavaCompile).configureEach {
-                  sourceCompatibility = "17"
-                  targetCompatibility = "17"
-              }
+          python3 - <<'PY'
+          from pathlib import Path
 
-              tasks.configureEach {
-                  if (name.toLowerCase().contains("kotlin")) {
-                      try {
-                          kotlinOptions.jvmTarget = "17"
-                      } catch (Exception ignored) {
-                      }
+          files = list(Path(".").rglob("*.gradle"))
+
+          for p in files:
+              text = p.read_text()
+
+              text = text.replace(
+                  "JavaVersion.VERSION_1_8",
+                  "JavaVersion.VERSION_17"
+              )
+
+              text = text.replace(
+                  'JavaVersion.VERSION_1_8',
+                  'JavaVersion.VERSION_17'
+              )
+
+              text = text.replace(
+                  'sourceCompatibility = 1.8',
+                  'sourceCompatibility = 17'
+              )
+
+              text = text.replace(
+                  'targetCompatibility = 1.8',
+                  'targetCompatibility = 17'
+              )
+
+              text = text.replace(
+                  'sourceCompatibility "1.8"',
+                  'sourceCompatibility "17"'
+              )
+
+              text = text.replace(
+                  'targetCompatibility "1.8"',
+                  'targetCompatibility "17"'
+              )
+
+              text = text.replace(
+                  'jvmTarget = "1.8"',
+                  'jvmTarget = "17"'
+              )
+
+              text = text.replace(
+                  "jvmTarget = '1.8'",
+                  "jvmTarget = '17'"
+              )
+
+              p.write_text(text)
+
+              print("Fixed:", p)
+
+          PY
+
+          cat >> build.gradle <<'EOF'
+
+          subprojects {
+              afterEvaluate {
+                  tasks.withType(JavaCompile).configureEach {
+                      sourceCompatibility = "17"
+                      targetCompatibility = "17"
+                  }
+
+                  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                      kotlinOptions.jvmTarget = "17"
                   }
               }
           }
           EOF
 
-          echo "=== Gradle JVM settings ==="
-          grep -RInE 'VERSION_1_8|jvmTarget|sourceCompatibility|targetCompatibility' "${PROJECT_DIR}" --include='*.gradle' --include='*.gradle.kts' || true
+          echo "=== SETTINGS FOUND ==="
+          grep -RInE 'VERSION_1_8|VERSION_17|jvmTarget|sourceCompatibility|targetCompatibility' . --include='*.gradle' || true
 
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
-            ./gradlew --no-daemon -I /tmp/force-jvm17.gradle :app:assembleDebug
+            ./gradlew --no-daemon :app:assembleDebug
           else
-            gradle --no-daemon -I /tmp/force-jvm17.gradle :app:assembleDebug
+            gradle --no-daemon :app:assembleDebug
           fi
 
       - name: Upload APK
