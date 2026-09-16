@@ -45,10 +45,42 @@ jobs:
             exit 1
           fi
 
-      - name: Configure Java 17
+            - name: Configure Java 17
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
           echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/build.gradle")
+          if p.exists():
+              s = p.read_text()
+
+              s = s.replace(
+                  "sourceCompatibility JavaVersion.VERSION_1_8",
+                  "sourceCompatibility JavaVersion.VERSION_17"
+              )
+              s = s.replace(
+                  "targetCompatibility JavaVersion.VERSION_1_8",
+                  "targetCompatibility JavaVersion.VERSION_17"
+              )
+
+              if "kotlinOptions" in s:
+                  s = s.replace(
+                      "jvmTarget = '1.8'",
+                      "jvmTarget = '17'"
+                  )
+                  s = s.replace(
+                      'jvmTarget = "1.8"',
+                      'jvmTarget = "17"'
+                  )
+
+              p.write_text(s)
+              print("Java/Kotlin target updated to 17")
+          else:
+              print("app/build.gradle not found")
+          PY
 
       - name: Build APK
         working-directory: ${{ env.PROJECT_DIR }}
@@ -58,7 +90,7 @@ jobs:
             ./gradlew --no-daemon :app:assembleDebug
           else
             gradle --no-daemon :app:assembleDebug
-          fi
+          f
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
