@@ -18,130 +18,20 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
+          cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
-      - name: Extract project
-        run: |
-          rm -rf project
-          mkdir project
-          unzip -q Net7dak60_V2_1.zip -d project
+      - name: Grant execute permission
+        run: chmod +x gradlew
 
-      - name: Find Android project
-        run: |
-          if [ -f "project/app/build.gradle" ]; then
-            echo "PROJECT_DIR=project" >> "$GITHUB_ENV"
-          elif [ -f "project/Net7dak60/app/build.gradle" ]; then
-            echo "PROJECT_DIR=project/Net7dak60" >> "$GITHUB_ENV"
-          else
-            echo "Android project not found"
-            find project -name "build.gradle" -o -name "build.gradle.kts"
-            exit 1
-          fi
+      - name: Build APK
+        run: ./gradlew --no-daemon :app:assembleDebug
 
-      - name: Fix Java and Kotlin JVM
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          files = list(Path(".").rglob("*.gradle"))
-
-          for p in files:
-              text = p.read_text()
-
-              text = text.replace(
-                  "JavaVersion.VERSION_1_8",
-                  "JavaVersion.VERSION_17"
-              )
-
-              text = text.replace(
-                  'JavaVersion.VERSION_1_8',
-                  'JavaVersion.VERSION_17'
-              )
-
-              text = text.replace(
-                  'sourceCompatibility = 1.8',
-                  'sourceCompatibility = 17'
-              )
-
-              text = text.replace(
-                  'targetCompatibility = 1.8',
-                  'targetCompatibility = 17'
-              )
-
-              text = text.replace(
-                  'sourceCompatibility "1.8"',
-                  'sourceCompatibility "17"'
-              )
-
-              text = text.replace(
-                  'targetCompatibility "1.8"',
-                  'targetCompatibility "17"'
-              )
-
-              text = text.replace(
-                  'jvmTarget = "1.8"',
-                  'jvmTarget = "17"'
-              )
-
-              text = text.replace(
-                  "jvmTarget = '1.8'",
-                  "jvmTarget = '17'"
-              )
-
-              p.write_text(text)
-
-              print("Fixed:", p)
-
-          PY
-
-          cat >> build.gradle <<'EOF'
-
-          subprojects {
-              afterEvaluate {
-                  tasks.withType(JavaCompile).configureEach {
-                      sourceCompatibility = "17"
-                      targetCompatibility = "17"
-                  }
-
-                  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                      kotlinOptions.jvmTarget = "17"
-                  }
-              }
-          }
-          EOF
-
-          echo "=== SETTINGS FOUND ==="
-          grep -RInE 'VERSION_1_8|VERSION_17|jvmTarget|sourceCompatibility|targetCompatibility' . --include='*.gradle' || true
-
-          - name: Inspect Gradle configuration
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          echo "===== app/build.gradle ====="
-          cat app/build.gradle
-
-          echo "===== root build.gradle ====="
-          if [ -f build.gradle ]; then
-            cat build.gradle
-          fi
-
-          echo "===== settings.gradle ====="
-          if [ -f settings.gradle ]; then
-            cat settings.gradle
-          fi
-
-          echo "===== JVM settings ====="
-          grep -RInE '1\.8|17|jvmTarget|sourceCompatibility|targetCompatibility|toolchain' . \
-            --include='*.gradle' \
-            --include='*.gradle.kts' || true
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Net7dak60-debug-apk
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: Net7dak-60-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
